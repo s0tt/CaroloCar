@@ -6,6 +6,7 @@
 #include <stdarg.h>
 
 #include "ViewTransformer.h"
+#include "Serial.h"
 
 cv::Mat readImg(std::string path);
 cv::Mat canny(cv::Mat imgOriginal);
@@ -29,7 +30,8 @@ constexpr float_t ANGLE_INFLUENCE = 0.05;
 
 int main(int argc, char** argv)
 {
-
+	int serial_port = Serial::init_serial();
+	std::cout << "Serial Port: " << serial_port << std::endl;
 	std::cout << "Press ESC to exit, p for pause" << std::endl;
 	cv::VideoCapture cap;
 
@@ -84,9 +86,15 @@ int main(int argc, char** argv)
 		std::vector<cv::Vec2f> s_lines;
 		cv::HoughLines(matEdges, s_lines, 1, CV_PI / 180, min_threshold_hough + s_trackbar, 0, 0);
 		cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART), matCut.size().width, matCut.size().height * ROAD_PART)));
+		
+		// Extract angle
 		std::vector<float> angles = drawLines(s_lines, matColor);
 		float angle = movingAverage(angles);
 		std::cout << "Gliding angle: " << round(angle) << std::endl;
+
+		// Transmit
+		int n_written = Serial::write_float(serial_port, angle);
+		std::cout << "Written: " << n_written << std::endl;
 
 		// Merge picture with part of detected lines
 		cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART))));

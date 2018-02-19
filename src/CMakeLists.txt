@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 project(carolocup)
-set(LIBRARIES "ViewTransformer;")
+
 
 # Should find all OpenCV libs
 find_package(OpenCV REQUIRED)
@@ -25,7 +25,9 @@ endif()
 # TODO: some more linker flag might be required here
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-add_subdirectory(${LIBRARIES})
+set(LIBRARIES "Serial;ViewTransformer;")
+add_subdirectory(ViewTransformer)
+add_subdirectory(Serial)
 add_subdirectory(Main)
 
 message(STATUS ${SOURCE_FILES})
