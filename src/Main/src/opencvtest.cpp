@@ -8,36 +8,44 @@
 #include "ViewTransformer.h"
 #include "Serial.h"
 
-cv::Mat readImg(std::string path);
-cv::Mat canny(cv::Mat imgOriginal);
-void show(int n, cv::Mat img...);
-int video(std::string path);
+//cv::Mat readImg(std::string path);
+//cv::Mat canny(cv::Mat imgOriginal);
+//void show(int n, cv::Mat img...);
+//int video(std::string path);
 int checkKey();
 std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color);
 float movingAverage(std::vector<float> angles);
 
-int min_threshold_hough = 20;
-int max_trackbar = 150;
 const std::string winHough = "Fahrspurerkennung";
 const std::string winOrig = "Original";
 const std::string winEdge = "Kantenerkennung";
 constexpr int32_t MAX_ANGLE = 30;
 constexpr float_t ROAD_PART = 0.3;
-const std::string videoPath = "/home/nvidia/CaroloCup/vision/rec/minute3.mp4";
+constexpr float_t ANGLE_INFLUENCE = 0.05;
+
+std::string videoPath = "/home/nvidia/CaroloCup/vision/rec/minute3.mp4";
 cv::Size imgSize(640, 360);
 float angleOld = 0;
-constexpr float_t ANGLE_INFLUENCE = 0.05;
+int min_threshold_hough = 20;
+int max_trackbar = 150;
 
 int main(int argc, char** argv)
 {
+	if(argc > 1) {
+		videoPath = argv[1];
+		std::cout << "Video path set to: " << videoPath << std::endl;
+	}
 	int serial_port = Serial::init_serial();
-	std::cout << "Serial Port: " << serial_port << std::endl;
+	if(serial_port == -1) {
+		std::cout << "Failed setting up serial port" << std::endl;
+		//return 0;
+	}
 	std::cout << "Press ESC to exit, p for pause" << std::endl;
 	cv::VideoCapture cap;
 
 	if (!cap.open(videoPath))
 	{
-		std::cout << "Could not open video" << std::endl;
+		std::cout << "Could not open video path: " << videoPath << std::endl;
 		return 0;
 	}
 
@@ -78,23 +86,25 @@ int main(int argc, char** argv)
 			cv::THRESH_TOZERO);
 
 		// Take road part for edge detection
-		cv::Mat matRoad(matBinarized(cv::Rect(0, matBinarized.size().height * (1 - ROAD_PART), matBinarized.size().width, matBinarized.size().height * ROAD_PART)));
+		cv::Mat matRoad(matBinarized(cv::Rect(0, matBinarized.size().height * (1 - ROAD_PART), 
+			matBinarized.size().width, matBinarized.size().height * ROAD_PART)));
 		cv::Mat matEdges;
 		cv::Canny(matRoad, matEdges, otsu_thresh_val * 0.75, otsu_thresh_val);
 
 		// Hough Transformation
 		std::vector<cv::Vec2f> s_lines;
 		cv::HoughLines(matEdges, s_lines, 1, CV_PI / 180, min_threshold_hough + s_trackbar, 0, 0);
-		cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART), matCut.size().width, matCut.size().height * ROAD_PART)));
+		cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART), 
+			matCut.size().width, matCut.size().height * ROAD_PART)));
 		
 		// Extract angle
 		std::vector<float> angles = drawLines(s_lines, matColor);
 		float angle = movingAverage(angles);
-		std::cout << "Gliding angle: " << round(angle) << std::endl;
+		std::cout << "Angle gliding: " << round(angle) << std::endl;
 
 		// Transmit
-		int n_written = Serial::write_float(serial_port, angle);
-		std::cout << "Written: " << n_written << std::endl;
+		int serial_written = Serial::write_float(serial_port, angle);
+		//std::cout << "Written: " << serial_written << std::endl;
 
 		// Merge picture with part of detected lines
 		cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART))));
@@ -107,8 +117,9 @@ int main(int argc, char** argv)
 		imshow(winOrig, matBirdview);
 
 		// Check for Esc or Pause
-		if (checkKey() == -1)
+		if (checkKey() == -1) {
 			return 0;
+		}
 	}
 	return 0;
 }
@@ -147,6 +158,7 @@ std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color) {
 float movingAverage(std::vector<float> angles) {
 	if (angles.size() == 0)
 		return angleOld;
+	// TODO weight by delta to gliding 
 	float angleAvg;
 	float angleSum = 0;
 	for (auto const& angle : angles) {
@@ -154,6 +166,7 @@ float movingAverage(std::vector<float> angles) {
 	}
 	angleAvg = angleSum / angles.size();
 	float angleNew = angleOld * (1 - ANGLE_INFLUENCE) + angleAvg * ANGLE_INFLUENCE;
+	//std::cout << "Angle avg: " << std::to_string(angleAvg) << std::endl;
 	angleOld = angleNew;
 	return angleNew;
 }
