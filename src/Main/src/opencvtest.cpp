@@ -20,7 +20,7 @@ float movingAverage(std::vector<float> angles);
 const std::string winHough = "Fahrspurerkennung";
 const std::string winOrig = "Original";
 const std::string winEdge = "Kantenerkennung";
-constexpr int32_t MAX_ANGLE = 30;
+constexpr float MAX_ANGLE = 50;
 constexpr float_t ROAD_PART = 0.3;
 constexpr float_t ANGLE_INFLUENCE = 0.05;
 
@@ -153,13 +153,14 @@ std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color) {
 		float theta = s_lines[i][1];
 		float degreeAngle = (theta * 180 / CV_PI);
 		degreeAngle = (degreeAngle>90.0) ? (degreeAngle - 180) : degreeAngle;
-		angles.push_back(degreeAngle);
+
 		// if the angle is very flat(close to horizontal) 
 		if (std::abs(degreeAngle) > MAX_ANGLE)
 		{
 			continue;
 		}
-		//std::cout << "(" << ") Angle: " << std::to_string(degreeAngle) << " " << std::to_string(theta) << std::endl;
+		angles.push_back(degreeAngle);
+		//std::cout << "(" << ") Angle: " << std::to_string(degreeAngle) << " | Theta: " << std::to_string(theta) << std::endl;
 
 		double cos_t = cos(theta);
 		double sin_t = sin(theta);
