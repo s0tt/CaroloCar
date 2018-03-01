@@ -63,6 +63,13 @@ int main(int argc, char** argv)
 	{
 		// Compress to smaller size
 		cv::resize(matSrc, matSrc, imgSize);
+		imshow("Before Undistort", matSrc);
+		
+		//Undistort image
+		cv::Mat matDest;
+		cv::undistort(matSrc, matDest, ViewTransformer::getCameraMat(), ViewTransformer::getDistortionMat());
+		matSrc = matDest;
+		imshow("Undistort", matSrc);
 
 		// Transform to birdview
 		cv::Mat matBirdview = ViewTransformer::toBirdview(matSrc);

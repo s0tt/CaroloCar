@@ -1,9 +1,21 @@
 #include "ViewTransformer.h"
+#include <iostream>
+
+const std::string camera_calib_path = "/home/nvidia/CameraCalibration/camera_new.yaml";
 
 const cv::Mat& ViewTransformer::toBirdview(const cv::Mat& matCarPerspective)
 {
-    cv::Mat transformationMat = getTransMat(matCarPerspective);
-
+    cv::Mat cameraMatExtend;
+    cv::Mat cameraMat = getCameraMat();
+    //std::cout << "cameraMat = "<< std::endl << " "  << cameraMat.type() << std::endl << std::endl;
+    cv::Mat zeroCol = cv::Mat(3, 1, CV_64FC1, cv::Scalar(0));
+    std::vector<cv::Mat> matrices = {cameraMat, zeroCol,};
+    //std::cout << "Zeros = "<< std::endl << " "  << zeroCol.type() << std::endl << std::endl;
+    cv::Mat matArray[] = {cameraMat, zeroCol,};
+    //std::cout << "Array = "<< std::endl << " "  << matArray << std::endl << std::endl;
+    cv::hconcat(matArray, 2, cameraMatExtend);
+    //std::cout << cameraMatExtend << std::endl;
+    cv::Mat transformationMat = cameraMatExtend * getTransMat(matCarPerspective);
     static cv::Mat MatBirdview;
 
     // Apply matrix transformation
@@ -36,6 +48,27 @@ const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig)
 
     return resizedMatCut;
 }
+
+const cv::Mat& ViewTransformer::getCameraMat()
+{
+	cv::FileStorage opencv_file(camera_calib_path, cv::FileStorage::READ);
+	static cv::Mat cam_mat;
+	opencv_file["camera_matrix"] >> cam_mat;
+	opencv_file.release();
+	//std::cout << "Cam Mat = "<< std::endl << " "  << cam_mat << std::endl << std::endl;
+	return cam_mat;
+}
+
+const cv::Mat& ViewTransformer::getDistortionMat()
+{
+	cv::FileStorage opencv_file(camera_calib_path, cv::FileStorage::READ);
+	static cv::Mat cam_distortion_mat;
+	opencv_file["distortion_coefficients"] >> cam_distortion_mat;
+	opencv_file.release();
+	//std::cout << "Cam Distortion = "<< std::endl << " "  << cam_distortion_mat << std::endl << std::endl;
+	return cam_distortion_mat;
+}
+
 
 const cv::Mat& ViewTransformer::getTransMat(const cv::Mat& matOrigPerspective)
 {
@@ -90,7 +123,7 @@ const cv::Mat& ViewTransformer::getTransMat(const cv::Mat& matOrigPerspective)
             0, f, h / 2, 0,
             0, 0, 1, 0);
 
-	static cv::Mat transMat = A2 * (T * (R * A1));
+    static cv::Mat transMat = (T * (R * A1));
 
     return transMat;
 }
