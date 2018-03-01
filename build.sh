@@ -51,7 +51,7 @@ case "$OSTYPE" in
 	} ;;
     *)       
     {
-        echo "Unsupported OS" >&2;
+        echo "Unknown OS" >&2;
     } ;;
 esac
 
@@ -71,17 +71,24 @@ if [ $DEBUG = true ]; then
     echo "Call cmake" >&2;
 fi
 
-cmake -DDEBUG:BOOL=$DEBUG ../src
+
+if [ $OSTYPE = "linux" ]; then 
+    cmake -DDEBUG:BOOL=$DEBUG -DLINUX:BOOL=true ../src
+elif [ $OSTYPE = "msys" ]; then 
+    cmake -DDEBUG:BOOL=$DEBUG -DLINUX:BOOL=false ../src
+fi
+
 
 if [ $DEBUG = true ]; then 
-    echo "Call make" >&2;
+    echo "Call make/build" >&2;
 fi
 
 if [ $OSTYPE = "linux" ]; then 
 	make
 	cp carolocup ../bin/carolocup
 elif [ $OSTYPE = "msys" ]; then 
-	echo "TODO auto build under Windows" >&2;
+	cmake --build . --target ALL_BUILD --config Release
+	cp Release/carolocup.exe ../bin/carolocup.exe
 fi
 
 exit_show

@@ -5,7 +5,9 @@
 #include <stdarg.h>
 
 #include "ViewTransformer.h"
+#ifdef __linux__ 
 #include "Serial.h"
+#endif
 
 //cv::Mat readImg(std::string path);
 //cv::Mat canny(cv::Mat imgOriginal);

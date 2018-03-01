@@ -1,5 +1,6 @@
 set(TARGET_NAME ViewTransformer)
 add_library(${TARGET_NAME} STATIC "src/${TARGET_NAME}.cpp;")
+target_link_libraries (${TARGET_NAME} PUBLIC ${OpenCV_LIBS})
 target_include_directories(${TARGET_NAME} PUBLIC "incl")
 
 #set(FILE ViewTransformer)
