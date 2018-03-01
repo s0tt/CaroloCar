@@ -2,7 +2,8 @@
 
 exit_show() 
 {
-    read -n 1 -s -r -p "Press any key to exit..."
+    read -n 1 -s -r -p "Press any key to exit...
+"
     exit
 }
 
@@ -14,6 +15,7 @@ where:
     -d  turn on debug information"
 
 DEBUG=false
+OS=unknown
 
 while getopts '::chd' option; do
     case "$option" in
@@ -39,12 +41,14 @@ shift $((OPTIND - 1))
 case "$OSTYPE" in
     linux*)  
     {
+	OS=linux
         if [ $DEBUG = true ]; then 
             echo "Linux OS detected" >&2;
         fi
     } ;;
     msys*)
     {	
+	OS=win
         if [ $DEBUG = true ]; then 
             echo "Windows OS detected" >&2;
         fi
@@ -72,9 +76,9 @@ if [ $DEBUG = true ]; then
 fi
 
 
-if [ $OSTYPE = "linux" ]; then 
+if [ $OS = "linux" ]; then 
     cmake -DDEBUG:BOOL=$DEBUG -DLINUX:BOOL=true ../src
-elif [ $OSTYPE = "msys" ]; then 
+elif [ $OS = "win" ]; then 
     cmake -DDEBUG:BOOL=$DEBUG -DLINUX:BOOL=false ../src
 fi
 
@@ -83,10 +87,10 @@ if [ $DEBUG = true ]; then
     echo "Call make/build" >&2;
 fi
 
-if [ $OSTYPE = "linux" ]; then 
+if [ $OS = "linux" ]; then 
 	make
 	cp carolocup ../bin/carolocup
-elif [ $OSTYPE = "msys" ]; then 
+elif [ $OS = "win" ]; then 
 	cmake --build . --target ALL_BUILD --config Release
 	cp Release/carolocup.exe ../bin/carolocup.exe
 fi
