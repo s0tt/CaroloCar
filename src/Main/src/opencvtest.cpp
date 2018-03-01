@@ -2,7 +2,6 @@
 
 #include <iostream>
 #include <string>
-//#include <conio.h>           // may have to modify this line if not using Windows
 #include <stdarg.h>
 
 #include "ViewTransformer.h"
@@ -23,7 +22,12 @@ constexpr int32_t MAX_ANGLE = 30;
 constexpr float_t ROAD_PART = 0.3;
 constexpr float_t ANGLE_INFLUENCE = 0.05;
 
+#ifdef __linux__ 
 std::string videoPath = "/home/nvidia/CaroloCup/vision/rec/minute3.mp4";
+#elif _WIN32
+std::string videoPath = "C:/Users/tmonn/Documents/Studienarbeit/Git/vision/rec/minute3.mp4";
+#endif
+
 cv::Size imgSize(640, 360);
 float angleOld = 0;
 int min_threshold_hough = 20;
@@ -35,11 +39,15 @@ int main(int argc, char** argv)
 		videoPath = argv[1];
 		std::cout << "Video path set to: " << videoPath << std::endl;
 	}
+
+#ifdef __linux__ 
 	int serial_port = Serial::init_serial();
 	if(serial_port == -1) {
 		std::cout << "Failed setting up serial port" << std::endl;
 		//return 0;
 	}
+#endif
+
 	std::cout << "Press ESC to exit, p for pause" << std::endl;
 	cv::VideoCapture cap;
 
@@ -103,8 +111,11 @@ int main(int argc, char** argv)
 		std::cout << "Angle gliding: " << round(angle) << std::endl;
 
 		// Transmit
+#ifdef __linux__ 
 		int serial_written = Serial::write_float(serial_port, angle);
 		//std::cout << "Written: " << serial_written << std::endl;
+#endif
+
 
 		// Merge picture with part of detected lines
 		cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART))));

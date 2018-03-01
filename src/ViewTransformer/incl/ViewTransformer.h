@@ -1,7 +1,3 @@
-//
-// Created by Nico on 02.03.17.
-//
-
 #ifndef VIEWTRANSFORMER_H
 #define VIEWTRANSFORMER_H
 
