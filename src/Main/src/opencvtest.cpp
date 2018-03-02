@@ -24,6 +24,7 @@ constexpr float MAX_ANGLE = 50;
 constexpr float_t ROAD_PART = 0.3;
 constexpr float_t ANGLE_INFLUENCE = 0.05;
 
+// TODO create different configs
 #ifdef __linux__ 
 std::string videoPath = "/home/nvidia/CaroloCup/vision/rec/minute3.mp4";
 #elif _WIN32

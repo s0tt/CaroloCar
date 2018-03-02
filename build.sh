@@ -88,11 +88,14 @@ if [ $DEBUG = true ]; then
 fi
 
 if [ $OS = "linux" ]; then 
-	make
-	cp carolocup ../bin/carolocup
+    make
+    cp carolocup ../bin/carolocup
 elif [ $OS = "win" ]; then 
-	cmake --build . --target ALL_BUILD --config Release
-	cp Release/carolocup.exe ../bin/carolocup.exe
+    cmake --build . --target ALL_BUILD --config Release
+    cp Release/carolocup.exe ../bin/carolocup.exe
 fi
 
-exit_show
+if [ $OS = "win" ]; then 
+    exit_show
+fi
+

@@ -1,7 +1,8 @@
 #include "ViewTransformer.h"
 #include <iostream>
 
-const std::string camera_calib_path = "/home/nvidia/CameraCalibration/camera_new.yaml";
+// Absolute path is path of build.sh!
+const std::string camera_calib_path = "calibration/camera.yaml";
 
 const cv::Mat& ViewTransformer::toBirdview(const cv::Mat& matCarPerspective)
 {
@@ -55,6 +56,7 @@ const cv::Mat& ViewTransformer::getCameraMat()
 	static cv::Mat cam_mat;
 	opencv_file["camera_matrix"] >> cam_mat;
 	opencv_file.release();
+	// TODO don't call every time
 	//std::cout << "Cam Mat = "<< std::endl << " "  << cam_mat << std::endl << std::endl;
 	return cam_mat;
 }
