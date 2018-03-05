@@ -31,7 +31,7 @@ std::string videoPath = "/home/nvidia/CaroloCup/vision/rec/minute3.mp4";
 std::string videoPath = "C:/Users/tmonn/Documents/Studienarbeit/Git/vision/rec/minute3.mp4";
 #endif
 
-cv::Size imgSize(640, 360);
+const cv::Size imgSize(640, 480);
 float angleOld = 0;
 int min_threshold_hough = 20;
 int max_trackbar = 150;
@@ -51,6 +51,7 @@ int main(int argc, char** argv)
 	}
 #endif
 
+	ViewTransformer viewTransformer = ViewTransformer::getInstance(imgSize);
 	std::cout << "Press ESC to exit, p for pause" << std::endl;
 	cv::VideoCapture cap;
 
@@ -77,16 +78,14 @@ int main(int argc, char** argv)
 		imshow("Before Undistort", matSrc);
 		
 		//Undistort image
-		cv::Mat matDest;
-		cv::undistort(matSrc, matDest, ViewTransformer::getCameraMat(), ViewTransformer::getDistortionMat());
-		matSrc = matDest;
-		imshow("Undistort", matSrc);
+		cv::Mat matUndist = viewTransformer.undistort(matSrc);
+		imshow("Undistort", matUndist);
 
 		// Transform to birdview
-		cv::Mat matBirdview = ViewTransformer::toBirdview(matSrc);
+		cv::Mat matBirdview = viewTransformer.toBirdview(matUndist);
 
 		// Cut ROI
-		cv::Mat matCut = ViewTransformer::cutROI(matBirdview);
+		cv::Mat matCut = viewTransformer.cutROI(matBirdview);
 
 		// Convert to greyscale
 		cv::Mat matSrcGray;

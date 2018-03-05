@@ -363,7 +363,7 @@ int main( int argc, char** argv )
         cameraId = parser.get<int>("@input_data");
     else
         inputFilename = parser.get<string>("@input_data");
-	inputFilename = "pics/pic_list.xml";
+	//inputFilename = "/home/nvidia/CaroloCup/vision/calibration/img/imglist.xml";
     if (!parser.check())
     {
         help();
@@ -399,7 +399,9 @@ int main( int argc, char** argv )
         return fprintf( stderr, "Could not initialize video (%d) capture\n",cameraId ), -2;
 
     if( !imageList.empty() )
+	
         nframes = (int)imageList.size();
+	//std::cout << "Num Images found: " << nframes << endl;
 
     if( capture.isOpened() )
         printf( "%s", liveCaptureHelp );
@@ -419,6 +421,7 @@ int main( int argc, char** argv )
         }
         else if( i < (int)imageList.size() )
             view = imread(imageList[i], 1);
+	    //imshow("Current open", view);
 
         if(view.empty())
         {
@@ -537,9 +540,9 @@ int main( int argc, char** argv )
             view = imread(imageList[i], 1);
             if(view.empty())
                 continue;
-            //undistort( view, rview, cameraMatrix, distCoeffs, cameraMatrix );
-            remap(view, rview, map1, map2, INTER_LINEAR);
-            imshow("Image View", rview);
+            undistort( view, rview, cameraMatrix, distCoeffs, cameraMatrix);
+            //remap(view, rview, map1, map2, INTER_LINEAR);
+            imshow("Image View Undistort", rview);
             char c = (char)waitKey();
             if( c == 27 || c == 'q' || c == 'Q' )
                 break;

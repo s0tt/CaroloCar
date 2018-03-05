@@ -25,6 +25,8 @@ endif()
 
 # Declare the executable target built from your sources
 add_executable(opencv_calib calibration.cpp)
+add_executable(opencv_listcreator imagelist_creator.cpp)
 
 # Link your application with OpenCV libraries
 target_link_libraries(opencv_calib ${OpenCV_LIBS})
+target_link_libraries(opencv_listcreator ${OpenCV_LIBS})
