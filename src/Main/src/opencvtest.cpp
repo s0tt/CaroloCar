@@ -20,6 +20,8 @@ float movingAverage(std::vector<float> angles);
 const std::string winHough = "Fahrspurerkennung";
 const std::string winOrig = "Original";
 const std::string winEdge = "Kantenerkennung";
+const std::string winUndist = "Undistort";
+
 constexpr float MAX_ANGLE = 50;
 constexpr float_t ROAD_PART = 0.3;
 constexpr float_t ANGLE_INFLUENCE = 0.05;
@@ -70,29 +72,28 @@ int main(int argc, char** argv)
 	cv::namedWindow(winEdge, cv::WINDOW_AUTOSIZE);
 	cv::namedWindow(winHough, cv::WINDOW_AUTOSIZE);
 	cv::namedWindow(winOrig, cv::WINDOW_AUTOSIZE);
+	cv::namedWindow(winUndist, cv::WINDOW_AUTOSIZE);
+	//cv::resizeWindow(winEdge, 640);
+	//cv::resizeWindow(winHough, 640, 480);
+	//cv::resizeWindow(winOrig, 640, 480);
+	//cv::resizeWindow(winUndist, 640, 480);
 	cv::createTrackbar(labelMinThreshHough, winHough, &s_trackbar, max_trackbar);
 
 	// Read all images from video
 	cv::Mat matSrc;
 	while (cap.read(matSrc))
 	{
-		//Raw image
-		imshow("Raw", matSrc);
-		
 		// Compress to smaller size
-		cv::resize(matSrc, matSrc, imgSize);
-		imshow("Before Undistort", matSrc);
+		//cv::resize(matSrc, matSrc, imgSize);
 		
 		//Undistort image
-		cv::Mat matUndist = viewTransformer.undistort(matSrc);
-		imshow("Undistort", matUndist);
+		cv::Mat matUndist = matSrc;//viewTransformer.undistort(matSrc);
 
 		// Transform to birdview
 		cv::Mat matBirdview = viewTransformer.toBirdview(matUndist);
 
 		// Cut ROI
 		cv::Mat matCut = viewTransformer.cutROI(matBirdview);
-		imshow("ROI", matCut);
 
 		// Convert to greyscale
 		cv::Mat matSrcGray;
@@ -139,9 +140,14 @@ int main(int argc, char** argv)
 		matFinal.push_back(matColor);
 
 		// Show pictures
+		cv::resize(matFinal, matFinal, cv::Size(640,640.0/matFinal.size().width*matFinal.size().height));
 		imshow(winHough, matFinal);
+		cv::resize(matEdges, matEdges, cv::Size(640,640.0/matEdges.size().width*matEdges.size().height));
 		imshow(winEdge, matEdges);
+		cv::resize(matBirdview, matBirdview, cv::Size(640,640.0/matBirdview.size().width*matBirdview.size().height));
 		imshow(winOrig, matBirdview);
+		cv::resize(matUndist, matUndist, cv::Size(640,640.0/matUndist.size().width*matUndist.size().height));
+		imshow(winUndist, matUndist);
 
 		// Check for Esc or Pause
 		if (checkKey() == -1) {
