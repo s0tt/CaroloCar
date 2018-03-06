@@ -64,10 +64,11 @@ const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig)
      // return value
     static cv::Mat resizedMatCut;
 
-    cv::Mat matCut = matOrig(cv::Rect(iXTopLeft,iYTopLeft,iXBottomRight, iYBottomRight));
-    cv::resize(matCut, resizedMatCut, origSize);
+    static cv::Mat matCut = matOrig(cv::Rect(iXTopLeft,iYTopLeft,iXBottomRight, iYBottomRight));
+    //cv::resize(matCut, resizedMatCut, origSize);
 
-    return resizedMatCut;
+    //return resizedMatCut;
+	return matCut;
 }
 
 const cv::Mat& ViewTransformer::getCameraMat(cv::FileStorage opencvFile)

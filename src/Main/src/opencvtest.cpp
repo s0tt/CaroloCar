@@ -31,7 +31,7 @@ std::string videoPath = "/home/nvidia/CaroloCup/vision/rec/minute3.mp4";
 std::string videoPath = "C:/Users/tmonn/Documents/Studienarbeit/Git/vision/rec/minute3.mp4";
 #endif
 
-const cv::Size imgSize(640, 480);
+const cv::Size imgSize(1920, 1080);
 float angleOld = 0;
 int min_threshold_hough = 20;
 int max_trackbar = 150;
@@ -53,13 +53,16 @@ int main(int argc, char** argv)
 
 	ViewTransformer viewTransformer = ViewTransformer::getInstance(imgSize);
 	std::cout << "Press ESC to exit, p for pause" << std::endl;
-	cv::VideoCapture cap;
+	cv::VideoCapture cap(videoPath);
 
-	if (!cap.open(videoPath))
-	{
-		std::cout << "Could not open video path: " << videoPath << std::endl;
-		return 0;
-	}
+	//std::cout << "Before: " <<cap.get(CV_CAP_PROP_FRAME_WIDTH) << " | " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << std::endl;
+
+	// Set camera resolution and frame rate
+	cap.set(CV_CAP_PROP_FRAME_WIDTH,imgSize.width);
+	cap.set(CV_CAP_PROP_FRAME_HEIGHT,imgSize.height);
+	cap.set(CV_CAP_PROP_FPS, 30);
+
+	//std::cout << "After: " << cap.get(CV_CAP_PROP_FRAME_WIDTH) << " | " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << std::endl;
 
 	// Create windows
 	int s_trackbar = 30;
@@ -73,6 +76,9 @@ int main(int argc, char** argv)
 	cv::Mat matSrc;
 	while (cap.read(matSrc))
 	{
+		//Raw image
+		imshow("Raw", matSrc);
+		
 		// Compress to smaller size
 		cv::resize(matSrc, matSrc, imgSize);
 		imshow("Before Undistort", matSrc);
@@ -86,6 +92,7 @@ int main(int argc, char** argv)
 
 		// Cut ROI
 		cv::Mat matCut = viewTransformer.cutROI(matBirdview);
+		imshow("ROI", matCut);
 
 		// Convert to greyscale
 		cv::Mat matSrcGray;
