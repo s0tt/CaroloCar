@@ -11,6 +11,7 @@
 
 int checkKey();
 std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color);
+inline double gaussKernel(std::vector<float> angles);
 float movingAverage(std::vector<float> angles);
 
 const std::string winHough = "Fahrspurerkennung";
@@ -19,7 +20,8 @@ const std::string winEdge = "Kantenerkennung";
 const std::string winUndist = "Undistort";
 
 constexpr float MAX_ANGLE = 50;
-constexpr float_t ROAD_PART = 0.3;
+constexpr float_t ROAD_PART_X = 0;
+constexpr float_t ROAD_PART_Y = 0.12;
 constexpr float_t ANGLE_INFLUENCE = 0.05;
 
 // TODO create different configs
@@ -31,7 +33,7 @@ std::string videoPath = "C:/Users/tmonn/Documents/Studienarbeit/Git/vision/rec/m
 
 const cv::Size imgSize(1920, 1080);
 float angleOld = 0;
-int min_threshold_hough = 20;
+int min_threshold_hough = 0;
 int max_trackbar = 150;
 
 int main(int argc, char** argv)
@@ -63,7 +65,7 @@ int main(int argc, char** argv)
 	//std::cout << "After: " << cap.get(CV_CAP_PROP_FRAME_WIDTH) << " | " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << std::endl;
 
 	// Create windows
-	int s_trackbar = 30;
+	int s_trackbar = 20;
 	std::string labelMinThreshHough = "Thresh:" + std::to_string(min_threshold_hough + s_trackbar);
 	cv::namedWindow(winEdge, cv::WINDOW_AUTOSIZE);
 	cv::namedWindow(winHough, cv::WINDOW_AUTOSIZE);
@@ -103,20 +105,20 @@ int main(int argc, char** argv)
 			cv::THRESH_TOZERO);
 
 		// Take road part for edge detection
-		cv::Mat matRoad(matBinarized(cv::Rect(0, matBinarized.size().height * (1 - ROAD_PART), 
-			matBinarized.size().width, matBinarized.size().height * ROAD_PART)));
+		cv::Mat matRoad(matBinarized(cv::Rect(matBinarized.size().width * ROAD_PART_X, matBinarized.size().height * (1 - ROAD_PART_Y), 
+			matBinarized.size().width * (1-2*ROAD_PART_X), matBinarized.size().height * ROAD_PART_Y)));
 		cv::Mat matEdges;
 		cv::Canny(matRoad, matEdges, otsu_thresh_val * 0.75, otsu_thresh_val);
 
 		// Hough Transformation
 		std::vector<cv::Vec2f> s_lines;
 		cv::HoughLines(matEdges, s_lines, 1, CV_PI / 180, min_threshold_hough + s_trackbar, 0, 0);
-		cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART), 
-			matCut.size().width, matCut.size().height * ROAD_PART)));
+		cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART_Y), 
+			matCut.size().width, matCut.size().height * ROAD_PART_Y)));
 		
 		// Extract angle
 		std::vector<float> angles = drawLines(s_lines, matColor);
-		float angle = movingAverage(angles);
+		float angle = gaussKernel(angles); //movingAverage(angles);
 		std::cout << "Angle gliding: " << round(angle) << std::endl;
 
 		// Transmit
@@ -127,7 +129,7 @@ int main(int argc, char** argv)
 
 
 		// Merge picture with part of detected lines
-		cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART))));
+		cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART_Y))));
 		//cv::cvtColor(matFinal, matFinal, cv::COLOR_GRAY2BGR);
 		matFinal.push_back(matColor);
 
@@ -147,6 +149,38 @@ int main(int argc, char** argv)
 		}
 	}
 	return 0;
+}
+
+inline double gauss(double sigma, double x) {
+    double expVal = -1 * (pow(x, 2) / pow(2 * sigma, 2));
+    double divider = sqrt(2 * CV_PI * pow(sigma, 2));
+    return (1 / divider) * exp(expVal);
+}
+
+inline double gaussKernel(std::vector<float> angles) {
+    std::vector<double> weight;
+	angles.push_back(angleOld);
+
+    for(int i = 0; i < angles.size(); i++) {
+		weight.push_back(gauss(3, angles[i]-angleOld));
+		//std::cout << "Angle: " << angles[i]-angleOld << " | weight: " << weight[i] << std::endl;
+    }
+	
+	double sum = 0;
+	for(int i = 0; i < weight.size(); i++) {
+		sum += weight[i];
+    }
+	
+	for(int i = 0; i < weight.size(); i++) {
+		weight[i] = weight[i] / sum;
+    }
+	
+	double angle = 0;
+	for(int i = 0; i < weight.size(); i++) {
+		angle += weight[i] * angles[i];
+    }
+	angleOld = angle;
+    return angle;
 }
 
 std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color) {
@@ -176,8 +210,13 @@ std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color) {
 
 		cv::Point pt1(cvRound(x0 + alpha * (-sin_t)), cvRound(y0 + alpha * cos_t));
 		cv::Point pt2(cvRound(x0 - alpha * (-sin_t)), cvRound(y0 - alpha * cos_t));
-		cv::line(color, pt1, pt2, cv::Scalar(0, 0, 200), 3, CV_AA);
+		cv::line(color, pt1, pt2, cv::Scalar(0, 0, 255), 1, CV_AA);
 	}
+	// Draw oldAngle in green
+	cv::line(color, cv::Point(color.size().width / 2, color.size().height), 
+	         cv::Point(color.size().width / 2 + tan(angleOld / 180 * CV_PI) * 100, 
+			 color.size().height - 100), cv::Scalar(0, 255, 0), 1, CV_AA);
+
 	return angles;
 }
 

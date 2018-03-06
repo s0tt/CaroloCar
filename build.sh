@@ -94,8 +94,3 @@ elif [ $OS = "win" ]; then
     cmake --build . --target ALL_BUILD --config Release
     cp Release/carolocup.exe ../bin/carolocup.exe
 fi
-
-if [ $OS = "win" ]; then 
-    exit_show
-fi
-

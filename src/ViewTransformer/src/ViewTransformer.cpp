@@ -52,22 +52,18 @@ const cv::Mat& ViewTransformer::toBirdview(const cv::Mat& matCarPerspective)
 const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig)
 {
     const cv::Size origSize = matOrig.size();
-    // cut this amount in percent away on each side
-    const float iXCutFactor = 0.3;
-    // start all the way from the top until this value (in %)
-    const float iYCutFactor = 0.5; // TODO: finaly check for lower boundery
-    const int iXTopLeft = static_cast<int>(origSize.width*iXCutFactor);
-    const int iYTopLeft = static_cast<int>(origSize.height*0.075);
-    const int iXBottomRight = static_cast<int>(origSize.width-(2*iXTopLeft));
-    const int iYBottomRight = static_cast<int>(origSize.height-(iYCutFactor*origSize.height));
 
+	const int iXTopLeft =     static_cast<int>(origSize.width  * 0.3);
+    const int iYTopLeft =     static_cast<int>(origSize.height * 0.12);
+    const int iXBottomRight = static_cast<int>(origSize.width  * 0.4);
+    const int iYBottomRight = static_cast<int>(origSize.height * 0.42);
+	
      // return value
     static cv::Mat resizedMatCut;
 
     static cv::Mat matCut = matOrig(cv::Rect(iXTopLeft,iYTopLeft,iXBottomRight, iYBottomRight));
-    //cv::resize(matCut, resizedMatCut, origSize);
+	//TODO think if resize or return new size
 
-    //return resizedMatCut;
 	return matCut;
 }
 
@@ -76,7 +72,6 @@ const cv::Mat& ViewTransformer::getCameraMat(cv::FileStorage opencvFile)
 	static cv::Mat cam_mat;
 	opencvFile["camera_matrix"] >> cam_mat;
 	opencvFile.release();
-	// TODO don't call every time
 	//std::cout << "Cam Mat = "<< std::endl << " "  << cam_mat << std::endl << std::endl;
 	return cam_mat;
 }
