@@ -4,16 +4,22 @@
 // Absolute path is path of build.sh!
 const std::string CAM_CALIB_PATH = "calibration/";
 
-ViewTransformer& ViewTransformer::getInstance(const cv::Size& size)
+ViewTransformer& ViewTransformer::getInstance(const cv::Size& size,  const float ROAD_PART_X, const float ROAD_PART_Y_LOW, const float ROAD_PART_Y_HIGH)
 {
     static ViewTransformer instance; // Guaranteed to be destroyed.
                                      // Instantiated on first use.
-    instance.init(size);
+    instance.init(size, ROAD_PART_X, ROAD_PART_Y_LOW, ROAD_PART_Y_HIGH);
     return instance;
 }
 
-void ViewTransformer::init(const cv::Size& size) {
+void ViewTransformer::init(const cv::Size& size, const float ROAD_PART_X, const float ROAD_PART_Y_LOW, const float ROAD_PART_Y_HIGH) {
     this->size = size;
+	double x_center = size.width /2;
+	ROIpoints.push_back(cv::Point(x_center * (1-ROAD_PART_X), size.height* (1-ROAD_PART_Y_HIGH))); //top left
+	ROIpoints.push_back(cv::Point(x_center + x_center * ROAD_PART_X, size.height* (1-ROAD_PART_Y_HIGH))); //top right
+	ROIpoints.push_back(cv::Point(x_center + x_center * ROAD_PART_X, size.height* (1-ROAD_PART_Y_LOW))); //bottom right
+	ROIpoints.push_back(cv::Point(x_center * (1-ROAD_PART_X), size.height* (1-ROAD_PART_Y_LOW))); //bottom left
+
     std::string camCalibFile = CAM_CALIB_PATH + std::to_string(size.width) + "x" + std::to_string(size.height) + ".yaml";
     cv::FileStorage opencvFile(camCalibFile, cv::FileStorage::READ);
     distortionMat = getDistortionMat(opencvFile);
@@ -49,23 +55,70 @@ const cv::Mat& ViewTransformer::toBirdview(const cv::Mat& matCarPerspective)
     return MatBirdview;
 }
 
+const std::vector<cv::Point2f>& ViewTransformer::toBirdview(const std::vector<cv::Point2f>& inputPoints)
+{
+    static std::vector<cv::Point2f> transformedPoints;
+    // Apply matrix transformation
+	cv::Mat inverseTransMat;
+	cv::invert(transformationMat, inverseTransMat);
+    cv::perspectiveTransform(inputPoints, transformedPoints, inverseTransMat);
+    return transformedPoints;
+}
+
 const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig)
 {
     const cv::Size origSize = matOrig.size();
 
-	const int iXTopLeft =     static_cast<int>(origSize.width  * 0.3);
-    const int iYTopLeft =     static_cast<int>(origSize.height * 0.12);
-    const int iXBottomRight = static_cast<int>(origSize.width  * 0.4);
-    const int iYBottomRight = static_cast<int>(origSize.height * 0.42);
 	
      // return value
     static cv::Mat resizedMatCut;
-
-    static cv::Mat matCut = matOrig(cv::Rect(iXTopLeft,iYTopLeft,iXBottomRight, iYBottomRight));
+	//std::cout << ROIpoints.at(0)<< "|" << ROIpoints.at(2) << std::endl;
+    static cv::Mat matCut;
+	matCut = matOrig(cv::Rect(ROIpoints.at(0), ROIpoints.at(2)));
 	//TODO think if resize or return new size
 
 	return matCut;
 }
+
+const std::vector<cv::Point2f>& ViewTransformer::getROIpoints()
+{
+	return ROIpoints;
+}
+
+const cv::Mat& ViewTransformer::cutTransformedROI(const cv::Mat& matOrig)
+{
+	std::vector<cv::Point2f> ROIpointsBirdview = toBirdview(ROIpoints);
+	//std::cout << "ROIpointsBirdview" <<  ROIpointsBirdview << std::endl;
+	cv::Point ROIpointArray[1][4];
+		ROIpointArray[0][0] = ROIpointsBirdview.at(0);
+		ROIpointArray[0][1] = ROIpointsBirdview.at(1);
+		ROIpointArray[0][2] = ROIpointsBirdview.at(2);
+		ROIpointArray[0][3] = ROIpointsBirdview.at(3);
+		
+		const cv::Point* ppt[1] = { ROIpointArray[0] };
+		int npt[] = { 4 };
+	
+	
+	cv::Mat mask(this->size,  matOrig.type(), cv::Scalar(0,0,0));
+	cv::fillPoly(mask, ppt, npt, 1, cv::Scalar( 255, 255, 255 ),  8);
+	
+	
+     // return value
+    static cv::Mat matReturn;
+	cv::Mat maskROI;
+	if(matOrig.size != mask.size){
+		maskROI = cutROI(mask);
+	}else{
+		maskROI = mask;
+	}
+	
+	matOrig.copyTo(matReturn, maskROI);
+    
+	//TODO think if resize or return new size
+
+	return matReturn;
+}
+
 
 const cv::Mat& ViewTransformer::getCameraMat(cv::FileStorage opencvFile)
 {
@@ -93,7 +146,7 @@ const cv::Mat& ViewTransformer::getTransMat(const cv::Size& size)
     const double alpha = -1.046667; // for full size: -0.645444, & small -1.046667
     const double beta = 0.0;
     const double gamma = 0.0;
-    const double distance = 80.0; // for full size:  70.0); & small 98.0
+    const double distance = 510.0; // for full size:  70.0); & small 98.0
     const double f = 500.0;
 
     //----------------------------------------------------------------------------

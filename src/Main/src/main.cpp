@@ -20,8 +20,9 @@ const std::string winEdge = "Kantenerkennung";
 const std::string winUndist = "Undistort";
 
 constexpr float MAX_ANGLE = 50;
-constexpr float_t ROAD_PART_X = 0;
-constexpr float_t ROAD_PART_Y = 0.12;
+constexpr float_t ROAD_PART_X = 0.90;
+constexpr float_t ROAD_PART_Y_LOW = 0.25;
+constexpr float_t ROAD_PART_Y_HIGH = 0.45;
 constexpr float_t ANGLE_INFLUENCE = 0.05;
 
 // TODO create different configs
@@ -51,7 +52,7 @@ int main(int argc, char** argv)
 	}
 #endif
 
-	ViewTransformer viewTransformer = ViewTransformer::getInstance(imgSize);
+		ViewTransformer viewTransformer = ViewTransformer::getInstance(imgSize, ROAD_PART_X, ROAD_PART_Y_LOW, ROAD_PART_Y_HIGH);
 	std::cout << "Press ESC to exit, p for pause" << std::endl;
 	cv::VideoCapture cap(videoPath);
 
@@ -64,6 +65,8 @@ int main(int argc, char** argv)
 
 	//std::cout << "After: " << cap.get(CV_CAP_PROP_FRAME_WIDTH) << " | " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << std::endl;
 
+		
+	
 	// Create windows
 	int s_trackbar = 20;
 	std::string labelMinThreshHough = "Thresh:" + std::to_string(min_threshold_hough + s_trackbar);
@@ -85,10 +88,20 @@ int main(int argc, char** argv)
 
 		// Transform to birdview
 		cv::Mat matBirdview = viewTransformer.toBirdview(matUndist);
-
+		
+		
 		// Cut ROI
-		cv::Mat matCut = viewTransformer.cutROI(matBirdview);
-
+		std::vector<cv::Point2f> points = viewTransformer.getROIpoints();
+		std::vector<cv::Point2f> pointsTransformed = viewTransformer.toBirdview(points);
+		cv::Mat matCut;
+		
+		matCut = viewTransformer.cutROI(matBirdview);
+		//std::cout << "test" << pointsTransformed << std::endl;
+		
+		const std::string winDBG = "DBG1";
+		cv::namedWindow(winDBG, cv::WINDOW_AUTOSIZE);
+		imshow(winDBG, matCut);
+		
 		// Convert to greyscale
 		cv::Mat matSrcGray;
 		cv::cvtColor(matCut, matSrcGray, cv::COLOR_RGB2GRAY);
@@ -105,16 +118,30 @@ int main(int argc, char** argv)
 			cv::THRESH_TOZERO);
 
 		// Take road part for edge detection
-		cv::Mat matRoad(matBinarized(cv::Rect(matBinarized.size().width * ROAD_PART_X, matBinarized.size().height * (1 - ROAD_PART_Y), 
-			matBinarized.size().width * (1-2*ROAD_PART_X), matBinarized.size().height * ROAD_PART_Y)));
-		cv::Mat matEdges;
-		cv::Canny(matRoad, matEdges, otsu_thresh_val * 0.75, otsu_thresh_val);
-
+		//cv::Mat matRoad(matBinarized(cv::Rect(matBinarized.size().width * ROAD_PART_X, matBinarized.size().height * (1 - ROAD_PART_Y), 
+		//	matBinarized.size().width * (1-2*ROAD_PART_X), matBinarized.size().height * ROAD_PART_Y)));
+		
+		
+		
+		//cv::Mat matRoad = viewTransformer.cutROI(matBinarized);
+		
+		
+		
+		
+		cv::Mat matEdgesFull;
+		cv::Canny(matBinarized, matEdgesFull, otsu_thresh_val * 0.75, otsu_thresh_val);
+		
+		
+		
+		cv::Mat matEdges = viewTransformer.cutTransformedROI(matEdgesFull);
+		
 		// Hough Transformation
 		std::vector<cv::Vec2f> s_lines;
 		cv::HoughLines(matEdges, s_lines, 1, CV_PI / 180, min_threshold_hough + s_trackbar, 0, 0);
-		cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART_Y), 
-			matCut.size().width, matCut.size().height * ROAD_PART_Y)));
+		
+		//cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART_Y), 
+		//	matCut.size().width, matCut.size().height * ROAD_PART_Y)));
+		cv::Mat matColor = viewTransformer.cutROI(matBirdview);
 		
 		// Extract angle
 		std::vector<float> angles = drawLines(s_lines, matColor);
@@ -129,10 +156,22 @@ int main(int argc, char** argv)
 
 
 		// Merge picture with part of detected lines
-		cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART_Y))));
+		//cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART_Y))));
 		//cv::cvtColor(matFinal, matFinal, cv::COLOR_GRAY2BGR);
-		matFinal.push_back(matColor);
+		cv::Mat matFinal= matBirdview.clone();
 
+		//DBG: POINTS DRAW
+		cv::circle(matSrc, points.at(0), 10, cv::Scalar(0, 255, 0), 5);
+		cv::circle(matSrc, points.at(1), 10, cv::Scalar(0, 255, 0), 5);
+		cv::circle(matSrc, points.at(2), 10, cv::Scalar(0, 255, 0), 5);
+		cv::circle(matSrc, points.at(3), 10, cv::Scalar(0, 255, 0), 5);
+		
+		cv::circle(matBirdview, pointsTransformed.at(0), 15, cv::Scalar(255, 0, 0), 10);
+		cv::circle(matBirdview, pointsTransformed.at(1), 15, cv::Scalar(255, 0, 0), 10);
+		cv::circle(matBirdview, pointsTransformed.at(2), 15, cv::Scalar(255, 0, 0), 10);
+		cv::circle(matBirdview, pointsTransformed.at(3), 15, cv::Scalar(255, 0, 0), 10);
+		
+		
 		// Show pictures
 		cv::resize(matFinal, matFinal, cv::Size(640,640.0/matFinal.size().width*matFinal.size().height));
 		imshow(winHough, matFinal);
@@ -140,8 +179,8 @@ int main(int argc, char** argv)
 		imshow(winEdge, matEdges);
 		cv::resize(matBirdview, matBirdview, cv::Size(640,640.0/matBirdview.size().width*matBirdview.size().height));
 		imshow(winOrig, matBirdview);
-		cv::resize(matUndist, matUndist, cv::Size(640,640.0/matUndist.size().width*matUndist.size().height));
-		imshow(winUndist, matUndist);
+		cv::resize(matSrc, matSrc, cv::Size(640,640.0/matUndist.size().width*matUndist.size().height));
+		imshow(winUndist, matSrc);
 
 		// Check for Esc or Pause
 		if (checkKey() == -1) {

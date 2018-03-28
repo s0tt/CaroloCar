@@ -1,0 +1,5 @@
+﻿  Building Custom Rule C:/Users/so/Dropbox/DHBW ITA/Studienarbeit/Git/vision/src/ViewTransformer/CMakeLists.txt
+  CMake does not need to re-run because C:/Users/so/Dropbox/DHBW ITA/Studienarbeit/Git/vision/src/ViewTransformer/CMakeFiles/generate.stamp is up-to-date.
+  ViewTransformer.cpp
+C:\Users\so\Dropbox\DHBW ITA\Studienarbeit\Git\vision\src\ViewTransformer\src\ViewTransformer.cpp(56): warning C4305: "Initialisierung": Verkürzung von "double" in "float"
+  ViewTransformer.vcxproj -> C:\Users\so\Dropbox\DHBW ITA\Studienarbeit\Git\vision\src\ViewTransformer\Debug\ViewTransformer.lib
