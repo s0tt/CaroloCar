@@ -15,6 +15,8 @@ ViewTransformer& ViewTransformer::getInstance(const cv::Size& size,  const float
 void ViewTransformer::init(const cv::Size& size, const float ROAD_PART_X, const float ROAD_PART_Y_LOW, const float ROAD_PART_Y_HIGH) {
     this->size = size;
 	double x_center = size.width /2;
+	
+	//calculate ROI points for rectangle cut out
 	ROIpoints.push_back(cv::Point(x_center * (1-ROAD_PART_X), size.height* (1-ROAD_PART_Y_HIGH))); //top left
 	ROIpoints.push_back(cv::Point(x_center + x_center * ROAD_PART_X, size.height* (1-ROAD_PART_Y_HIGH))); //top right
 	ROIpoints.push_back(cv::Point(x_center + x_center * ROAD_PART_X, size.height* (1-ROAD_PART_Y_LOW))); //bottom right
@@ -74,7 +76,8 @@ const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig)
     static cv::Mat resizedMatCut;
 	//std::cout << ROIpoints.at(0)<< "|" << ROIpoints.at(2) << std::endl;
     static cv::Mat matCut;
-	matCut = matOrig(cv::Rect(ROIpoints.at(0), ROIpoints.at(2)));
+	std::vector<cv::Point2f> ROIpointsBirdview = toBirdview(ROIpoints);
+	matCut = matOrig(cv::Rect(cv::Point(0, ROIpointsBirdview.at(3).y), cv::Point(origSize.width, ROIpointsBirdview.at(1).y)));
 	//TODO think if resize or return new size
 
 	return matCut;
@@ -90,32 +93,40 @@ const cv::Mat& ViewTransformer::cutTransformedROI(const cv::Mat& matOrig)
 	std::vector<cv::Point2f> ROIpointsBirdview = toBirdview(ROIpoints);
 	//std::cout << "ROIpointsBirdview" <<  ROIpointsBirdview << std::endl;
 	cv::Point ROIpointArray[1][4];
-		ROIpointArray[0][0] = ROIpointsBirdview.at(0);
-		ROIpointArray[0][1] = ROIpointsBirdview.at(1);
-		ROIpointArray[0][2] = ROIpointsBirdview.at(2);
-		ROIpointArray[0][3] = ROIpointsBirdview.at(3);
+	cv::Size origSize = matOrig.size();
+		ROIpointArray[0][0] = cv::Point(ROIpointsBirdview.at(0).x, 0);
+		ROIpointArray[0][1] = cv::Point(ROIpointsBirdview.at(1).x, 0);
+		ROIpointArray[0][2] = cv::Point(ROIpointsBirdview.at(2).x, origSize.height);
+		ROIpointArray[0][3] = cv::Point(ROIpointsBirdview.at(3).x, origSize.height);
 		
 		const cv::Point* ppt[1] = { ROIpointArray[0] };
 		int npt[] = { 4 };
 	
 	
-	cv::Mat mask(this->size,  matOrig.type(), cv::Scalar(0,0,0));
+	cv::Mat mask(matOrig.size(),  matOrig.type(), cv::Scalar(0,0,0));
 	cv::fillPoly(mask, ppt, npt, 1, cv::Scalar( 255, 255, 255 ),  8);
+	
 	
 	
      // return value
     static cv::Mat matReturn;
 	cv::Mat maskROI;
-	if(matOrig.size != mask.size){
+	if(false){ //matOrig.size != mask.size
 		maskROI = cutROI(mask);
+		//maskROI = mask(cv::Rect(cv::Point(0, ROIpointsBirdview.at(3).y), cv::Point(size.width, ROIpoints.at(1).y))) ;
 	}else{
 		maskROI = mask;
 	}
 	
+	const std::string winDBG3 = "DBG3|Mask";
+		cv::namedWindow(winDBG3, cv::WINDOW_AUTOSIZE);
+		imshow(winDBG3, maskROI);
+	
+	std::cout << "sizes:" << matOrig.size() << "|" << maskROI.size() << std::endl;
 	matOrig.copyTo(matReturn, maskROI);
     
 	//TODO think if resize or return new size
-
+	
 	return matReturn;
 }
 

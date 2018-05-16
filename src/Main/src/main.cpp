@@ -21,7 +21,7 @@ const std::string winUndist = "Undistort";
 
 constexpr float MAX_ANGLE = 50;
 constexpr float_t ROAD_PART_X = 0.90;
-constexpr float_t ROAD_PART_Y_LOW = 0.25;
+constexpr float_t ROAD_PART_Y_LOW = 0.3;
 constexpr float_t ROAD_PART_Y_HIGH = 0.45;
 constexpr float_t ANGLE_INFLUENCE = 0.05;
 
@@ -95,12 +95,16 @@ int main(int argc, char** argv)
 		std::vector<cv::Point2f> pointsTransformed = viewTransformer.toBirdview(points);
 		cv::Mat matCut;
 		
+	
 		matCut = viewTransformer.cutROI(matBirdview);
+		//matCut = matBirdview(cv::Rect(ROIpoints.at(0), ROIpoints.at(2)));
 		//std::cout << "test" << pointsTransformed << std::endl;
 		
-		const std::string winDBG = "DBG1";
-		cv::namedWindow(winDBG, cv::WINDOW_AUTOSIZE);
-		imshow(winDBG, matCut);
+		const std::string winDBG2 = "DBG2|matCut";
+		cv::namedWindow(winDBG2, cv::WINDOW_AUTOSIZE);
+		imshow(winDBG2, matCut);
+		
+		
 		
 		// Convert to greyscale
 		cv::Mat matSrcGray;
@@ -127,13 +131,20 @@ int main(int argc, char** argv)
 		
 		
 		
-		
+		//Detects edges in full rectangle
 		cv::Mat matEdgesFull;
 		cv::Canny(matBinarized, matEdgesFull, otsu_thresh_val * 0.75, otsu_thresh_val);
 		
+		const std::string winDBG = "DBG1|Edge";
+		cv::namedWindow(winDBG, cv::WINDOW_AUTOSIZE);
+		imshow(winDBG, matEdgesFull);
 		
-		
+		//Cuts edges from the frame border
 		cv::Mat matEdges = viewTransformer.cutTransformedROI(matEdgesFull);
+		
+		const std::string winDBG4 = "DBG4|Cut Edges";
+		cv::namedWindow(winDBG4, cv::WINDOW_AUTOSIZE);
+		imshow(winDBG4, matEdges);
 		
 		// Hough Transformation
 		std::vector<cv::Vec2f> s_lines;
