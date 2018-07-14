@@ -4,25 +4,18 @@
 // Absolute path is path of build.sh!
 const std::string CAM_CALIB_PATH = "calibration/";
 
-ViewTransformer& ViewTransformer::getInstance(const cv::Size& size,  const float ROAD_PART_X, const float ROAD_PART_Y_LOW, const float ROAD_PART_Y_HIGH)
+ViewTransformer& ViewTransformer::getInstance(const cv::Size& size)
 {
     static ViewTransformer instance; // Guaranteed to be destroyed.
                                      // Instantiated on first use.
-    instance.init(size, ROAD_PART_X, ROAD_PART_Y_LOW, ROAD_PART_Y_HIGH);
+    instance.init(size);
     return instance;
 }
 
-void ViewTransformer::init(const cv::Size& size, const float ROAD_PART_X, const float ROAD_PART_Y_LOW, const float ROAD_PART_Y_HIGH) {
+void ViewTransformer::init(const cv::Size& size) {
     this->size = size;
-	double x_center = size.width /2;
-	
-	//calculate ROI points for rectangle cut out
-	ROIpoints.push_back(cv::Point(x_center * (1-ROAD_PART_X), size.height* (1-ROAD_PART_Y_HIGH))); //top left
-	ROIpoints.push_back(cv::Point(x_center + x_center * ROAD_PART_X, size.height* (1-ROAD_PART_Y_HIGH))); //top right
-	ROIpoints.push_back(cv::Point(x_center + x_center * ROAD_PART_X, size.height* (1-ROAD_PART_Y_LOW))); //bottom right
-	ROIpoints.push_back(cv::Point(x_center * (1-ROAD_PART_X), size.height* (1-ROAD_PART_Y_LOW))); //bottom left
 
-    std::string camCalibFile = CAM_CALIB_PATH + std::to_string(size.width) + "x" + std::to_string(size.height) + ".yaml";
+	std::string camCalibFile = CAM_CALIB_PATH + std::to_string(size.width) + "x" + std::to_string(size.height) + ".yaml";
     cv::FileStorage opencvFile(camCalibFile, cv::FileStorage::READ);
     distortionMat = getDistortionMat(opencvFile);
     cameraMat = getCameraMat(opencvFile);
@@ -64,67 +57,69 @@ const std::vector<cv::Point2f>& ViewTransformer::toBirdview(const std::vector<cv
 	cv::Mat inverseTransMat;
 	cv::invert(transformationMat, inverseTransMat);
     cv::perspectiveTransform(inputPoints, transformedPoints, inverseTransMat);
+//	try{
+	for(int i = 0; i < transformedPoints.size(); i++){
+		if(transformedPoints.at(i).y > size.height || transformedPoints.at(i).y < 0){
+			std::cout << "Exception: Transformed ROI is out of bounds" << std::endl << "Adjust ROI bounds in X (Vehicle Coordinates) direction" << std::endl;
+			throw std::exception("Exception: Transformed ROI is out of bounds\nAdjust ROI bounds in X (Vehicle Coordinates) direction");
+		}
+		if(transformedPoints.at(i).x > size.width || transformedPoints.at(i).x < 0){
+			std::cout << "Exception: Transformed ROI is out of bounds" << std::endl << "Adjust ROI bounds in Y (Vehicle Coordinates) direction" << std::endl;
+			throw std::exception("Exception: Transformed ROI is out of bounds\nAdjust ROI bounds in Y (Vehicle Coordinates) direction");;
+		}
+	}
+/*	}catch(99){
+		cout << "Exception: Transformed ROI is out of bounds" << std::endl;
+		cout << "Adjust ROI bounds in Y direction" << std::endl;
+	}catch(100){
+		cout << "Exception: Transformed ROI is out of bounds" << std::endl;
+		cout << "Adjust ROI bounds in X direction" << std::endl;
+	}
+	*/
     return transformedPoints;
 }
 
-const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig)
+const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig, const std::vector<cv::Point2f>& ROIpoints)
 {
     const cv::Size origSize = matOrig.size();
 
 	
      // return value
-    static cv::Mat resizedMatCut;
 	//std::cout << ROIpoints.at(0)<< "|" << ROIpoints.at(2) << std::endl;
     static cv::Mat matCut;
-	std::vector<cv::Point2f> ROIpointsBirdview = toBirdview(ROIpoints);
-	matCut = matOrig(cv::Rect(cv::Point(0, ROIpointsBirdview.at(3).y), cv::Point(origSize.width, ROIpointsBirdview.at(1).y)));
+	//cut out full width rectangle
+	//creates rectangle with top and bottom ROI point Y-values
+
+	
+	matCut = matOrig(cv::Rect(cv::Point(0, ROIpoints.at(3).y), cv::Point(origSize.width, ROIpoints.at(1).y)));
 	//TODO think if resize or return new size
 
 	return matCut;
 }
 
-const std::vector<cv::Point2f>& ViewTransformer::getROIpoints()
+const cv::Mat& ViewTransformer::maskEdges(const cv::Mat& matOrig, const std::vector<cv::Point2f>& ROIpoints)
 {
-	return ROIpoints;
-}
-
-const cv::Mat& ViewTransformer::cutTransformedROI(const cv::Mat& matOrig)
-{
-	std::vector<cv::Point2f> ROIpointsBirdview = toBirdview(ROIpoints);
 	//std::cout << "ROIpointsBirdview" <<  ROIpointsBirdview << std::endl;
 	cv::Point ROIpointArray[1][4];
 	cv::Size origSize = matOrig.size();
-		ROIpointArray[0][0] = cv::Point(ROIpointsBirdview.at(0).x, 0);
-		ROIpointArray[0][1] = cv::Point(ROIpointsBirdview.at(1).x, 0);
-		ROIpointArray[0][2] = cv::Point(ROIpointsBirdview.at(2).x, origSize.height);
-		ROIpointArray[0][3] = cv::Point(ROIpointsBirdview.at(3).x, origSize.height);
-		
-		const cv::Point* ppt[1] = { ROIpointArray[0] };
-		int npt[] = { 4 };
 	
+	ROIpointArray[0][0] = cv::Point(ROIpoints.at(0).x, 0);
+	ROIpointArray[0][1] = cv::Point(ROIpoints.at(1).x, 0);
+	ROIpointArray[0][2] = cv::Point(ROIpoints.at(2).x, origSize.height);
+	ROIpointArray[0][3] = cv::Point(ROIpoints.at(3).x, origSize.height);
+
+		
+	const cv::Point* ROIpointer[1] = { ROIpointArray[0] };
+	int npt[] = { 4 };
 	
 	cv::Mat mask(matOrig.size(),  matOrig.type(), cv::Scalar(0,0,0));
-	cv::fillPoly(mask, ppt, npt, 1, cv::Scalar( 255, 255, 255 ),  8);
-	
+	cv::fillPoly(mask, ROIpointer, npt, 1, cv::Scalar( 255, 255, 255 ),  8);
 	
 	
      // return value
     static cv::Mat matReturn;
-	cv::Mat maskROI;
-	if(false){ //matOrig.size != mask.size
-		maskROI = cutROI(mask);
-		//maskROI = mask(cv::Rect(cv::Point(0, ROIpointsBirdview.at(3).y), cv::Point(size.width, ROIpoints.at(1).y))) ;
-	}else{
-		maskROI = mask;
-	}
-	
-	const std::string winDBG3 = "DBG3|Mask";
-		cv::namedWindow(winDBG3, cv::WINDOW_AUTOSIZE);
-		imshow(winDBG3, maskROI);
-	
-	std::cout << "sizes:" << matOrig.size() << "|" << maskROI.size() << std::endl;
-	matOrig.copyTo(matReturn, maskROI);
-    
+
+	matOrig.copyTo(matReturn, mask);   
 	//TODO think if resize or return new size
 	
 	return matReturn;
