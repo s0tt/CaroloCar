@@ -13,6 +13,7 @@ int checkKey();
 std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color);
 inline double gaussKernel(std::vector<float> angles);
 float movingAverage(std::vector<float> angles);
+std::vector<cv::Point2f>& getROIpoints(const cv::Size& size, const float ROAD_PART_Y, const float ROAD_PART_X_LOW, const float ROAD_PART_X_HIGH);
 
 const std::string winHough = "Fahrspurerkennung";
 const std::string winOrig = "Original";
@@ -20,8 +21,9 @@ const std::string winEdge = "Kantenerkennung";
 const std::string winUndist = "Undistort";
 
 constexpr float MAX_ANGLE = 50;
-constexpr float_t ROAD_PART_X = 0;
-constexpr float_t ROAD_PART_Y = 0.12;
+constexpr float ROAD_PART_Y = 0.9; //0.9
+constexpr float ROAD_PART_X_LOW = 0.28; //0.25
+constexpr float ROAD_PART_X_HIGH = 0.6; //0.55
 constexpr float_t ANGLE_INFLUENCE = 0.05;
 
 // TODO create different configs
@@ -52,21 +54,21 @@ int main(int argc, char** argv)
 #endif
 
 	ViewTransformer viewTransformer = ViewTransformer::getInstance(imgSize);
+	std::vector<cv::Point2f>& ROIpoints = getROIpoints(imgSize, ROAD_PART_Y, ROAD_PART_X_LOW, ROAD_PART_X_HIGH);
 	std::cout << "Press ESC to exit, p for pause" << std::endl;
 	cv::VideoCapture cap(videoPath);
 
-	//std::cout << "Before: " <<cap.get(CV_CAP_PROP_FRAME_WIDTH) << " | " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << std::endl;
 
 	// Set camera resolution and frame rate
 	cap.set(CV_CAP_PROP_FRAME_WIDTH,imgSize.width);
 	cap.set(CV_CAP_PROP_FRAME_HEIGHT,imgSize.height);
 	cap.set(CV_CAP_PROP_FPS, 30);
 
-	//std::cout << "After: " << cap.get(CV_CAP_PROP_FRAME_WIDTH) << " | " << cap.get(CV_CAP_PROP_FRAME_HEIGHT) << std::endl;
-
+		
+	
 	// Create windows
 	int s_trackbar = 20;
-	std::string labelMinThreshHough = "Thresh:" + std::to_string(min_threshold_hough + s_trackbar);
+	std::string labelMinThreshHough = "Thresh";
 	cv::namedWindow(winEdge, cv::WINDOW_AUTOSIZE);
 	cv::namedWindow(winHough, cv::WINDOW_AUTOSIZE);
 	cv::namedWindow(winOrig, cv::WINDOW_AUTOSIZE);
@@ -80,15 +82,21 @@ int main(int argc, char** argv)
 		// Compress to smaller size
 		//cv::resize(matSrc, matSrc, imgSize);
 		
+
+		
 		//Undistort image
 		cv::Mat matUndist = matSrc;//viewTransformer.undistort(matSrc);
+		
 
 		// Transform to birdview
 		cv::Mat matBirdview = viewTransformer.toBirdview(matUndist);
-
+	
 		// Cut ROI
-		cv::Mat matCut = viewTransformer.cutROI(matBirdview);
+		cv::Mat matCut;
+		matCut = viewTransformer.cutROI(matBirdview, viewTransformer.toBirdview(ROIpoints));
+	
 
+		
 		// Convert to greyscale
 		cv::Mat matSrcGray;
 		cv::cvtColor(matCut, matSrcGray, cv::COLOR_RGB2GRAY);
@@ -103,21 +111,23 @@ int main(int argc, char** argv)
 			CV_THRESH_BINARY | CV_THRESH_OTSU);
 		cv::threshold(matBlurred, matBinarized, 200, std::numeric_limits<uint8_t>::max(),
 			cv::THRESH_TOZERO);
-
-		// Take road part for edge detection
-		cv::Mat matRoad(matBinarized(cv::Rect(matBinarized.size().width * ROAD_PART_X, matBinarized.size().height * (1 - ROAD_PART_Y), 
-			matBinarized.size().width * (1-2*ROAD_PART_X), matBinarized.size().height * ROAD_PART_Y)));
-		cv::Mat matEdges;
-		cv::Canny(matRoad, matEdges, otsu_thresh_val * 0.75, otsu_thresh_val);
-
+		
+		
+		//Detects all edges
+		cv::Mat matEdgesFull;
+		cv::Canny(matBinarized, matEdgesFull, otsu_thresh_val * 0.75, otsu_thresh_val);
+		
+		//Mask detected edges with ROI
+		cv::Mat matEdges = viewTransformer.maskEdges(matEdgesFull, viewTransformer.toBirdview(ROIpoints));
+	
+		
 		// Hough Transformation
 		std::vector<cv::Vec2f> s_lines;
-		cv::HoughLines(matEdges, s_lines, 1, CV_PI / 180, min_threshold_hough + s_trackbar, 0, 0);
-		cv::Mat matColor(matCut(cv::Rect(0, matCut.size().height * (1 - ROAD_PART_Y), 
-			matCut.size().width, matCut.size().height * ROAD_PART_Y)));
+		cv::HoughLines(matEdges, s_lines, 1, CV_PI / 180, min_threshold_hough + s_trackbar, 0, 0);;
+		//cv::Mat matColor = viewTransformer.cutROI(matBirdview);
 		
 		// Extract angle
-		std::vector<float> angles = drawLines(s_lines, matColor);
+		std::vector<float> angles = drawLines(s_lines, matCut);
 		float angle = gaussKernel(angles); //movingAverage(angles);
 		std::cout << "Angle gliding: " << round(angle) << std::endl;
 
@@ -129,10 +139,9 @@ int main(int argc, char** argv)
 
 
 		// Merge picture with part of detected lines
-		cv::Mat matFinal(matCut(cv::Rect(0, 0, matCut.size().width, matCut.size().height * (1 - ROAD_PART_Y))));
-		//cv::cvtColor(matFinal, matFinal, cv::COLOR_GRAY2BGR);
-		matFinal.push_back(matColor);
-
+		cv::Mat matFinal= matBirdview.clone();
+			
+		
 		// Show pictures
 		cv::resize(matFinal, matFinal, cv::Size(640,640.0/matFinal.size().width*matFinal.size().height));
 		imshow(winHough, matFinal);
@@ -140,8 +149,8 @@ int main(int argc, char** argv)
 		imshow(winEdge, matEdges);
 		cv::resize(matBirdview, matBirdview, cv::Size(640,640.0/matBirdview.size().width*matBirdview.size().height));
 		imshow(winOrig, matBirdview);
-		cv::resize(matUndist, matUndist, cv::Size(640,640.0/matUndist.size().width*matUndist.size().height));
-		imshow(winUndist, matUndist);
+		cv::resize(matSrc, matSrc, cv::Size(640,640.0/matUndist.size().width*matUndist.size().height));
+		imshow(winUndist, matSrc);
 
 		// Check for Esc or Pause
 		if (checkKey() == -1) {
@@ -181,6 +190,22 @@ inline double gaussKernel(std::vector<float> angles) {
     }
 	angleOld = angle;
     return angle;
+}
+
+
+std::vector<cv::Point2f>& getROIpoints(const cv::Size& size, const float ROAD_PART_Y, const float ROAD_PART_X_LOW, const float ROAD_PART_X_HIGH){
+
+	static std::vector<cv::Point2f> ROIpoints;
+	double y_center = imgSize.width /2;
+	
+	//calculate point coordinates for ROI rectangle
+	ROIpoints.push_back(cv::Point(y_center * (1-ROAD_PART_Y), size.height* (1-ROAD_PART_X_HIGH))); //top left
+	ROIpoints.push_back(cv::Point(y_center + y_center * ROAD_PART_Y, size.height* (1-ROAD_PART_X_HIGH))); //top right
+	ROIpoints.push_back(cv::Point(y_center + y_center * ROAD_PART_Y, size.height* (1-ROAD_PART_X_LOW))); //bottom right
+	ROIpoints.push_back(cv::Point(y_center * (1-ROAD_PART_Y), size.height* (1-ROAD_PART_X_LOW))); //bottom left
+	
+	
+	return ROIpoints;
 }
 
 std::vector<float> drawLines(std::vector<cv::Vec2f> s_lines, cv::Mat& color) {

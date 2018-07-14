@@ -14,7 +14,8 @@ ViewTransformer& ViewTransformer::getInstance(const cv::Size& size)
 
 void ViewTransformer::init(const cv::Size& size) {
     this->size = size;
-    std::string camCalibFile = CAM_CALIB_PATH + std::to_string(size.width) + "x" + std::to_string(size.height) + ".yaml";
+
+	std::string camCalibFile = CAM_CALIB_PATH + std::to_string(size.width) + "x" + std::to_string(size.height) + ".yaml";
     cv::FileStorage opencvFile(camCalibFile, cv::FileStorage::READ);
     distortionMat = getDistortionMat(opencvFile);
     cameraMat = getCameraMat(opencvFile);
@@ -49,23 +50,81 @@ const cv::Mat& ViewTransformer::toBirdview(const cv::Mat& matCarPerspective)
     return MatBirdview;
 }
 
-const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig)
+const std::vector<cv::Point2f>& ViewTransformer::toBirdview(const std::vector<cv::Point2f>& inputPoints)
+{
+    static std::vector<cv::Point2f> transformedPoints;
+    // Apply matrix transformation
+	cv::Mat inverseTransMat;
+	cv::invert(transformationMat, inverseTransMat);
+    cv::perspectiveTransform(inputPoints, transformedPoints, inverseTransMat);
+//	try{
+	for(int i = 0; i < transformedPoints.size(); i++){
+		if(transformedPoints.at(i).y > size.height || transformedPoints.at(i).y < 0){
+			std::cout << "Exception: Transformed ROI is out of bounds" << std::endl << "Adjust ROI bounds in X (Vehicle Coordinates) direction" << std::endl;
+			throw std::exception("Exception: Transformed ROI is out of bounds\nAdjust ROI bounds in X (Vehicle Coordinates) direction");
+		}
+		if(transformedPoints.at(i).x > size.width || transformedPoints.at(i).x < 0){
+			std::cout << "Exception: Transformed ROI is out of bounds" << std::endl << "Adjust ROI bounds in Y (Vehicle Coordinates) direction" << std::endl;
+			throw std::exception("Exception: Transformed ROI is out of bounds\nAdjust ROI bounds in Y (Vehicle Coordinates) direction");;
+		}
+	}
+/*	}catch(99){
+		cout << "Exception: Transformed ROI is out of bounds" << std::endl;
+		cout << "Adjust ROI bounds in Y direction" << std::endl;
+	}catch(100){
+		cout << "Exception: Transformed ROI is out of bounds" << std::endl;
+		cout << "Adjust ROI bounds in X direction" << std::endl;
+	}
+	*/
+    return transformedPoints;
+}
+
+const cv::Mat& ViewTransformer::cutROI(const cv::Mat& matOrig, const std::vector<cv::Point2f>& ROIpoints)
 {
     const cv::Size origSize = matOrig.size();
 
-	const int iXTopLeft =     static_cast<int>(origSize.width  * 0.3);
-    const int iYTopLeft =     static_cast<int>(origSize.height * 0.12);
-    const int iXBottomRight = static_cast<int>(origSize.width  * 0.4);
-    const int iYBottomRight = static_cast<int>(origSize.height * 0.42);
 	
      // return value
-    static cv::Mat resizedMatCut;
+	//std::cout << ROIpoints.at(0)<< "|" << ROIpoints.at(2) << std::endl;
+    static cv::Mat matCut;
+	//cut out full width rectangle
+	//creates rectangle with top and bottom ROI point Y-values
 
-    static cv::Mat matCut = matOrig(cv::Rect(iXTopLeft,iYTopLeft,iXBottomRight, iYBottomRight));
+	
+	matCut = matOrig(cv::Rect(cv::Point(0, ROIpoints.at(3).y), cv::Point(origSize.width, ROIpoints.at(1).y)));
 	//TODO think if resize or return new size
 
 	return matCut;
 }
+
+const cv::Mat& ViewTransformer::maskEdges(const cv::Mat& matOrig, const std::vector<cv::Point2f>& ROIpoints)
+{
+	//std::cout << "ROIpointsBirdview" <<  ROIpointsBirdview << std::endl;
+	cv::Point ROIpointArray[1][4];
+	cv::Size origSize = matOrig.size();
+	
+	ROIpointArray[0][0] = cv::Point(ROIpoints.at(0).x, 0);
+	ROIpointArray[0][1] = cv::Point(ROIpoints.at(1).x, 0);
+	ROIpointArray[0][2] = cv::Point(ROIpoints.at(2).x, origSize.height);
+	ROIpointArray[0][3] = cv::Point(ROIpoints.at(3).x, origSize.height);
+
+		
+	const cv::Point* ROIpointer[1] = { ROIpointArray[0] };
+	int npt[] = { 4 };
+	
+	cv::Mat mask(matOrig.size(),  matOrig.type(), cv::Scalar(0,0,0));
+	cv::fillPoly(mask, ROIpointer, npt, 1, cv::Scalar( 255, 255, 255 ),  8);
+	
+	
+     // return value
+    static cv::Mat matReturn;
+
+	matOrig.copyTo(matReturn, mask);   
+	//TODO think if resize or return new size
+	
+	return matReturn;
+}
+
 
 const cv::Mat& ViewTransformer::getCameraMat(cv::FileStorage opencvFile)
 {
@@ -93,7 +152,7 @@ const cv::Mat& ViewTransformer::getTransMat(const cv::Size& size)
     const double alpha = -1.046667; // for full size: -0.645444, & small -1.046667
     const double beta = 0.0;
     const double gamma = 0.0;
-    const double distance = 80.0; // for full size:  70.0); & small 98.0
+    const double distance = 510.0; // for full size:  70.0); & small 98.0
     const double f = 500.0;
 
     //----------------------------------------------------------------------------

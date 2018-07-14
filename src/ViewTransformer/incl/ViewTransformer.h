@@ -10,9 +10,11 @@ public:
 
     // Methods
     const cv::Mat& toBirdview(const cv::Mat& matCarPerspective);
-    const cv::Mat& cutROI(const cv::Mat& matBirdview);
+    const cv::Mat& cutROI(const cv::Mat& matBirdview, const std::vector<cv::Point2f>& ROIpoints);
     const cv::Mat& undistort(const cv::Mat& matSrc);
-
+	const std::vector<cv::Point2f>& ViewTransformer::toBirdview(const std::vector<cv::Point2f>& inputPoints);
+	const cv::Mat& ViewTransformer::maskEdges(const cv::Mat& matOrig, const std::vector<cv::Point2f>& ROIpoints);
+	
     // Singleton
     static ViewTransformer& getInstance(const cv::Size& size);
     //ViewTransformer(ViewTransformer const&) = delete;

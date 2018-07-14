@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="C:\Users\so\Dropbox\DHBW ITA\Studienarbeit\Git\vision\src\ViewTransformer\src\ViewTransformer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\so\Dropbox\DHBW ITA\Studienarbeit\Git\vision\src\ViewTransformer\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{E9F9349E-D811-37CC-A16D-BCCC93A0C017}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>
