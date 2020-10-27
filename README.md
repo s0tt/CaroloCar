@@ -26,7 +26,7 @@ In the following picture the communication between the parts is depicted.
 
 **Software functionality**
 
-**Line detection ** 
+**Line detection** 
 The scene processing to extract the lane markings consists of several steps:
 
 1. Birdview transformation + Region-of-interest (ROI) selection
@@ -35,6 +35,7 @@ The scene processing to extract the lane markings consists of several steps:
 5. Canny edge detection
 6. Hough Transformation
 
+The whole processing can be observed in the following animation:
 ![Lane extraction](demo/CaroloGif_100t_10fade.gif "Lane extraction")
 
 The whole processing is limited to a specific ROI which can be selected by the user.
